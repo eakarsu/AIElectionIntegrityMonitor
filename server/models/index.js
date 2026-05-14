@@ -4,6 +4,8 @@ const BallotCount = require('./BallotCount');
 const Redistricting = require('./Redistricting');
 const VoterRegistration = require('./VoterRegistration');
 const CampaignFinance = require('./CampaignFinance');
+const AiAuditLog = require('./AiAuditLog');
+const ReviewSignoff = require('./ReviewSignoff');
 
 module.exports = {
   sequelize,
@@ -11,5 +13,7 @@ module.exports = {
   BallotCount,
   Redistricting,
   VoterRegistration,
-  CampaignFinance
+  CampaignFinance,
+  AiAuditLog,
+  ReviewSignoff
 };

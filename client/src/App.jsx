@@ -5,6 +5,12 @@ import BallotCountPage from './pages/BallotCountPage';
 import RedistrictingPage from './pages/RedistrictingPage';
 import VoterRegistrationPage from './pages/VoterRegistrationPage';
 import CampaignFinancePage from './pages/CampaignFinancePage';
+import BallotIntegrityCheckPage from './pages/BallotIntegrityCheckPage';
+import CampaignFinanceAnalysisPage from './pages/CampaignFinanceAnalysisPage';
+import VoterRegistrationAuditPage from './pages/VoterRegistrationAuditPage';
+import GerrymanderingAnalysisPage from './pages/GerrymanderingAnalysisPage';
+
+import Batch03Features from './pages/Batch03Features';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -42,7 +48,11 @@ export default function App() {
     'ballot-counts': <BallotCountPage />,
     redistricting: <RedistrictingPage />,
     'voter-registration': <VoterRegistrationPage />,
-    'campaign-finance': <CampaignFinancePage />
+    'campaign-finance': <CampaignFinancePage />,
+    'ai-ballot-integrity': <BallotIntegrityCheckPage />,
+    'ai-campaign-finance': <CampaignFinanceAnalysisPage />,
+    'ai-voter-audit': <VoterRegistrationAuditPage />,
+    'ai-gerrymandering': <GerrymanderingAnalysisPage />
   };
 
   const pageTitles = {
@@ -50,7 +60,11 @@ export default function App() {
     'ballot-counts': 'Ballot Counting Verification',
     redistricting: 'Redistricting Fairness Analysis',
     'voter-registration': 'Voter Registration Anomaly Detection',
-    'campaign-finance': 'Campaign Finance Tracking'
+    'campaign-finance': 'Campaign Finance Tracking',
+    'ai-ballot-integrity': 'AI Ballot Integrity Check',
+    'ai-campaign-finance': 'AI Campaign Finance Analysis',
+    'ai-voter-audit': 'AI Voter Registration Audit',
+    'ai-gerrymandering': 'AI Gerrymandering Analysis'
   };
 
   const navItems = [
@@ -58,7 +72,11 @@ export default function App() {
     { id: 'ballot-counts', label: 'Ballot Verification', icon: '🗳️' },
     { id: 'redistricting', label: 'Redistricting', icon: '🗺️' },
     { id: 'voter-registration', label: 'Voter Registration', icon: '📋' },
-    { id: 'campaign-finance', label: 'Campaign Finance', icon: '💰' }
+    { id: 'campaign-finance', label: 'Campaign Finance', icon: '💰' },
+    { id: 'ai-ballot-integrity', label: 'AI Ballot Integrity', icon: '🤖' },
+    { id: 'ai-campaign-finance', label: 'AI Finance Analysis', icon: '🔍' },
+    { id: 'ai-voter-audit', label: 'AI Voter Audit', icon: '🧾' },
+    { id: 'ai-gerrymandering', label: 'AI Gerrymandering', icon: '🧭' }
   ];
 
   return (

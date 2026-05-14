@@ -62,3 +62,14 @@ export const campaignFinance = {
   delete: (id) => request(`/campaign-finance/${id}`, { method: 'DELETE' }),
   analyze: (id) => request(`/campaign-finance/${id}/analyze`, { method: 'POST' })
 };
+
+export const ai = {
+  ballotIntegrityCheck: (data) =>
+    request('/ai/ballot-integrity-check', { method: 'POST', body: JSON.stringify(data) }),
+  campaignFinanceAnalysis: (data) =>
+    request('/ai/campaign-finance-analysis', { method: 'POST', body: JSON.stringify(data) }),
+  voterRegistrationAudit: (data) =>
+    request('/ai/voter-registration-audit', { method: 'POST', body: JSON.stringify(data) }),
+  gerrymanderingAnalysis: (data) =>
+    request('/ai/gerrymandering-analysis', { method: 'POST', body: JSON.stringify(data) })
+};

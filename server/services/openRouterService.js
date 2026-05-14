@@ -1,8 +1,9 @@
 const https = require('https');
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
+const { parseAIJson } = require('../utils/parseAIJson');
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-haiku-4.5';
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-3-5-sonnet-20241022';
 
 async function queryAI(prompt, systemPrompt = '') {
   return new Promise((resolve, reject) => {
@@ -56,6 +57,16 @@ async function queryAI(prompt, systemPrompt = '') {
   });
 }
 
+// Backwards-compat wrapper around shared 3-strategy parser. Throws on total failure
+// to preserve original semantics for callers that catch and provide fallbacks.
+function cleanJsonResponse(content) {
+  const parsed = parseAIJson(content);
+  if (parsed && parsed.parseError) {
+    throw new Error(parsed.parseError);
+  }
+  return parsed;
+}
+
 async function analyzeBallotCount(record) {
   const prompt = `Analyze this ballot counting record for potential irregularities:
 - Precinct: ${record.precinct}, County: ${record.county}, State: ${record.state}
@@ -67,14 +78,22 @@ async function analyzeBallotCount(record) {
 - Current Discrepancy: ${record.discrepancy}
 - Turnout Rate: ${((record.totalBallotsCast / record.registeredVoters) * 100).toFixed(1)}%
 
-Provide analysis covering:
-1. Turnout anomaly assessment
-2. Machine vs hand count discrepancy evaluation
-3. Statistical outlier check
-4. Risk level (Low/Medium/High/Critical)
-5. Recommended actions`;
+Respond ONLY with valid JSON in this exact format:
+{
+  "risk_level": "Low|Medium|High|Critical",
+  "confidence": 0-100,
+  "summary": "brief summary of findings",
+  "flags": ["flag1", "flag2"],
+  "recommended_actions": ["action1", "action2"]
+}`;
 
-  return queryAI(prompt, 'You are an expert election integrity analyst. Provide thorough, impartial analysis of ballot counting data. Focus on statistical anomalies and potential irregularities.');
+  const result = await queryAI(prompt, 'You are an expert election integrity analyst. Provide thorough, impartial analysis of ballot counting data. Return only valid JSON.');
+  try {
+    result.parsedContent = cleanJsonResponse(result.content);
+  } catch (e) {
+    result.parsedContent = { risk_level: 'Unknown', confidence: 0, summary: result.content, flags: [], recommended_actions: [] };
+  }
+  return result;
 }
 
 async function analyzeRedistricting(record) {
@@ -88,15 +107,22 @@ async function analyzeRedistricting(record) {
 - Competitiveness Index: ${record.competitivenessIndex}
 - Current Fairness Score: ${record.fairnessScore || 'Not scored'}
 
-Analyze for:
-1. Potential gerrymandering indicators
-2. Minority representation impact
-3. Compactness assessment
-4. Community of interest preservation
-5. Overall fairness rating (1-10)
-6. Recommendations`;
+Respond ONLY with valid JSON in this exact format:
+{
+  "risk_level": "Low|Medium|High|Critical",
+  "confidence": 0-100,
+  "summary": "brief summary of findings",
+  "flags": ["flag1", "flag2"],
+  "recommended_actions": ["action1", "action2"]
+}`;
 
-  return queryAI(prompt, 'You are a nonpartisan redistricting fairness analyst. Evaluate district proposals based on legal standards, fairness principles, and demographic equity.');
+  const result = await queryAI(prompt, 'You are a nonpartisan redistricting fairness analyst. Evaluate district proposals based on legal standards, fairness principles, and demographic equity. Return only valid JSON.');
+  try {
+    result.parsedContent = cleanJsonResponse(result.content);
+  } catch (e) {
+    result.parsedContent = { risk_level: 'Unknown', confidence: 0, summary: result.content, flags: [], recommended_actions: [] };
+  }
+  return result;
 }
 
 async function analyzeVoterRegistration(record) {
@@ -111,15 +137,22 @@ async function analyzeVoterRegistration(record) {
 - Current Anomaly Score: ${record.anomalyScore}
 - Flag Rate: ${((record.flaggedRecords / record.totalRegistrations) * 100).toFixed(2)}%
 
-Analyze for:
-1. Anomaly pattern assessment
-2. Duplicate registration concern level
-3. Deceased voter roll comparison
-4. Address verification issues
-5. Risk classification (Low/Medium/High/Critical)
-6. Recommended investigation steps`;
+Respond ONLY with valid JSON in this exact format:
+{
+  "risk_level": "Low|Medium|High|Critical",
+  "confidence": 0-100,
+  "summary": "brief summary of findings",
+  "flags": ["flag1", "flag2"],
+  "recommended_actions": ["action1", "action2"]
+}`;
 
-  return queryAI(prompt, 'You are a voter registration integrity specialist. Analyze registration data for anomalies while being mindful of legitimate explanations for data patterns.');
+  const result = await queryAI(prompt, 'You are a voter registration integrity specialist. Analyze registration data for anomalies while being mindful of legitimate explanations for data patterns. Return only valid JSON.');
+  try {
+    result.parsedContent = cleanJsonResponse(result.content);
+  } catch (e) {
+    result.parsedContent = { risk_level: 'Unknown', confidence: 0, summary: result.content, flags: [], recommended_actions: [] };
+  }
+  return result;
 }
 
 async function analyzeCampaignFinance(record) {
@@ -134,20 +167,27 @@ async function analyzeCampaignFinance(record) {
 - Largest Single Donation: $${Number(record.largestSingleDonation).toLocaleString()}
 - Reporting Period: ${record.reportingPeriod}
 
-Analyze for:
-1. Contribution limit compliance
-2. Source of funds assessment
-3. Foreign donation concerns
-4. Expenditure pattern analysis
-5. Dark money indicators
-6. Compliance risk level (Low/Medium/High/Critical)
-7. Recommended audit actions`;
+Respond ONLY with valid JSON in this exact format:
+{
+  "risk_level": "Low|Medium|High|Critical",
+  "confidence": 0-100,
+  "summary": "brief summary of findings",
+  "flags": ["flag1", "flag2"],
+  "recommended_actions": ["action1", "action2"]
+}`;
 
-  return queryAI(prompt, 'You are a campaign finance compliance expert. Analyze financial records for FEC compliance, potential violations, and suspicious patterns.');
+  const result = await queryAI(prompt, 'You are a campaign finance compliance expert. Analyze financial records for FEC compliance, potential violations, and suspicious patterns. Return only valid JSON.');
+  try {
+    result.parsedContent = cleanJsonResponse(result.content);
+  } catch (e) {
+    result.parsedContent = { risk_level: 'Unknown', confidence: 0, summary: result.content, flags: [], recommended_actions: [] };
+  }
+  return result;
 }
 
 module.exports = {
   queryAI,
+  cleanJsonResponse,
   analyzeBallotCount,
   analyzeRedistricting,
   analyzeVoterRegistration,

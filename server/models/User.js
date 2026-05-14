@@ -25,6 +25,11 @@ const User = sequelize.define('User', {
   role: {
     type: DataTypes.ENUM('admin', 'auditor', 'viewer'),
     defaultValue: 'viewer'
+  },
+  party_affiliation: {
+    type: DataTypes.STRING(2),
+    defaultValue: 'N',
+    comment: 'D|R|I|O|N — used by bipartisan dual-review workflow'
   }
 }, {
   hooks: {
