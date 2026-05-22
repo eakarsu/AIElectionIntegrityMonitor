@@ -271,9 +271,8 @@ ONLY with valid JSON:
 }`;
 
     const result = await queryAI(prompt, 'You are a senior election integrity analyst specializing in ballot count anomaly detection. Return only valid JSON.');
-    const cleaned = cleanJsonResponse(result);
     let parsed;
-    try { parsed = JSON.parse(cleaned); } catch { parsed = { raw: result }; }
+    try { parsed = cleanJsonResponse(result.content); } catch { parsed = { raw: result.content }; }
 
     res.json({
       county: county || null,
@@ -327,9 +326,8 @@ and timing clusters. Respond ONLY with valid JSON:
 }`;
 
     const result = await queryAI(prompt, 'You are a senior campaign finance analyst specializing in pattern detection across contribution records. Return only valid JSON.');
-    const cleaned = cleanJsonResponse(result);
     let parsed;
-    try { parsed = JSON.parse(cleaned); } catch { parsed = { raw: result }; }
+    try { parsed = cleanJsonResponse(result.content); } catch { parsed = { raw: result.content }; }
 
     res.json({
       state,

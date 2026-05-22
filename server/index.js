@@ -68,6 +68,7 @@ app.use('/api/transparency-portal', require('./routes/transparencyPortal'));
 app.use('/api/voter-guides', require('./routes/multiLanguageGuides'));
 app.use('/api/security-checklist', require('./routes/securityChecklist'));
 app.use('/api/observer-network', require('./routes/observerNetwork'));
+app.use('/api/ballot-cure-queue', require('./routes/ballotCureQueue'));
 
 // Dashboard stats
 app.use('/api/dashboard', require('./middleware/auth').authenticateToken, async (req, res) => {

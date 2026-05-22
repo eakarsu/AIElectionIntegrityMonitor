@@ -9,6 +9,7 @@ import BallotIntegrityCheckPage from './pages/BallotIntegrityCheckPage';
 import CampaignFinanceAnalysisPage from './pages/CampaignFinanceAnalysisPage';
 import VoterRegistrationAuditPage from './pages/VoterRegistrationAuditPage';
 import GerrymanderingAnalysisPage from './pages/GerrymanderingAnalysisPage';
+import BallotCureQueuePage from './pages/BallotCureQueuePage';
 
 import Batch03Features from './pages/Batch03Features';
 
@@ -52,7 +53,8 @@ export default function App() {
     'ai-ballot-integrity': <BallotIntegrityCheckPage />,
     'ai-campaign-finance': <CampaignFinanceAnalysisPage />,
     'ai-voter-audit': <VoterRegistrationAuditPage />,
-    'ai-gerrymandering': <GerrymanderingAnalysisPage />
+    'ai-gerrymandering': <GerrymanderingAnalysisPage />,
+    'ballot-cure-queue': <BallotCureQueuePage />
   };
 
   const pageTitles = {
@@ -64,7 +66,8 @@ export default function App() {
     'ai-ballot-integrity': 'AI Ballot Integrity Check',
     'ai-campaign-finance': 'AI Campaign Finance Analysis',
     'ai-voter-audit': 'AI Voter Registration Audit',
-    'ai-gerrymandering': 'AI Gerrymandering Analysis'
+    'ai-gerrymandering': 'AI Gerrymandering Analysis',
+    'ballot-cure-queue': 'Ballot Cure Queue'
   };
 
   const navItems = [
@@ -76,7 +79,8 @@ export default function App() {
     { id: 'ai-ballot-integrity', label: 'AI Ballot Integrity', icon: '🤖' },
     { id: 'ai-campaign-finance', label: 'AI Finance Analysis', icon: '🔍' },
     { id: 'ai-voter-audit', label: 'AI Voter Audit', icon: '🧾' },
-    { id: 'ai-gerrymandering', label: 'AI Gerrymandering', icon: '🧭' }
+    { id: 'ai-gerrymandering', label: 'AI Gerrymandering', icon: '🧭' },
+    { id: 'ballot-cure-queue', label: 'Ballot Cure Queue', icon: '📬' }
   ];
 
   return (
