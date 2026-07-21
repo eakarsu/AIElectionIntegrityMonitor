@@ -1,7 +1,10 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'election_integrity_jwt_secret';
+function getJwtSecret() {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || process.env.JWT_SECRET.startsWith('replace-')) throw new Error('JWT_SECRET must contain at least 32 non-placeholder characters');
+  return process.env.JWT_SECRET;
+}
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -11,7 +14,7 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, getJwtSecret(), (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
@@ -28,8 +31,9 @@ function generateToken(user) {
       role: user.role,
       name: user.name,
       party_affiliation: user.party_affiliation || 'N'
+      ,jurisdiction_id: user.jurisdiction_id
     },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: '24h' }
   );
 }

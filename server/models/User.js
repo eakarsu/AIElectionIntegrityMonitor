@@ -30,6 +30,11 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING(2),
     defaultValue: 'N',
     comment: 'D|R|I|O|N — used by bipartisan dual-review workflow'
+  },
+  jurisdiction_id: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Required jurisdiction boundary for governed review routes'
   }
 }, {
   hooks: {

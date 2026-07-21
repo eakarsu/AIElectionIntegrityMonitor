@@ -1,0 +1,2 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');
+test('integrity migration includes jurisdiction, provenance, signoffs, audit, and sync failure state',()=>{const sql=fs.readFileSync(path.join(__dirname,'../migrations/001_integrity_cases.sql'),'utf8');for(const term of ['jurisdiction_id','source_fingerprint','integrity_signoffs','integrity_events','integrity_source_sync','dead_letter'])assert.ok(sql.includes(term),term);});

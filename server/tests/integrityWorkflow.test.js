@@ -1,0 +1,7 @@
+const test=require('node:test'); const assert=require('node:assert/strict');
+const {validateSignal,assertTransition,assertClaimLanguage,hasBipartisanApproval}=require('../services/integrityWorkflow');
+const signal={source_url:'https://elections.example.gov/feed',source_type:'official_results',source_published_at:'2026-11-04T01:00:00Z',jurisdiction:'Example County',signal_type:'count_variance',observed_facts:'Reported total changed by 12',baseline:'Expected updates may revise totals',uncertainty:.4,languages:['en'],checksum:'a'.repeat(64)};
+test('accepts authorized, provenance-bearing aggregate signals',()=>assert.equal(validateSignal(signal,['elections.example.gov']).jurisdiction,'Example County'));
+test('rejects unauthorized hosts and voter profiling fields',()=>{assert.throws(()=>validateSignal(signal,['official.gov']),/authorized/);assert.throws(()=>validateSignal({...signal,voter_id:'V-1'}),/identifiers/);});
+test('blocks unsupported fraud claims and invalid transitions',()=>{assert.throws(()=>assertClaimLanguage('This proves election fraud'),/prohibited/);assert.throws(()=>assertTransition('intake','published'),/not allowed/);});
+test('requires independent bipartisan or nonpartisan approval',()=>{assert.equal(hasBipartisanApproval([{actor_id:1,party_affiliation:'D',decision:'approve'},{actor_id:2,party_affiliation:'R',decision:'approve'}]),true);assert.equal(hasBipartisanApproval([{actor_id:1,party_affiliation:'D',decision:'approve'}]),false);});

@@ -49,6 +49,13 @@ app.use(express.json());
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '../client/build')));
 
+app.use('/api', (req, res, next) => {
+  const governed = ['/auth', '/review-workflow'].some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`));
+  const legacyEnabled = process.env.NODE_ENV !== 'production' && process.env.ENABLE_LEGACY_PROTOTYPE_ROUTES === 'true';
+  if (governed || legacyEnabled) return next();
+  return res.status(404).json({ error: 'Legacy prototype route is quarantined' });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/ballot-counts', ballotCountRoutes);
@@ -111,30 +118,6 @@ async function startServer() {
   try {
     await sequelize.authenticate();
     console.log('Database connected successfully.');
-    await sequelize.sync();
-    console.log('Database synced.');
-
-    // Create audit log table if it doesn't exist
-    await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS ai_audit_logs (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER,
-        entity_type VARCHAR(100),
-        entity_id INTEGER,
-        model_used VARCHAR(200),
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    console.log('Audit log table ready.');
-
-    
-// === Batch 03 Gaps & Frontend Mounts ===
-try {
-  const _batch03 = require('./routes/batch03Gaps');
-  if (typeof authenticateToken === 'function') app.use('/api', authenticateToken, _batch03);
-  else app.use('/api', _batch03);
-} catch (_e) { /* batch03 gap routes optional */ }
-
 app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
