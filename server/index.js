@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
@@ -46,11 +47,16 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, '../client/build')));
+// Serve a production frontend build only when it exists. Development uses the
+// separately assigned Vite port, so attempting to send a missing build file
+// would turn harmless backend probes into ENOENT runtime errors.
+const clientBuildDir = path.join(__dirname, '../client/build');
+const clientIndexPath = path.join(clientBuildDir, 'index.html');
+const hasClientBuild = fs.existsSync(clientIndexPath);
+if (hasClientBuild) app.use(express.static(clientBuildDir));
 
 app.use('/api', (req, res, next) => {
-  const governed = ['/auth', '/review-workflow'].some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`));
+  const governed = ['/auth', '/review-workflow', '/ai', '/health'].some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`));
   const legacyEnabled = process.env.NODE_ENV !== 'production' && process.env.ENABLE_LEGACY_PROTOTYPE_ROUTES === 'true';
   if (governed || legacyEnabled) return next();
   return res.status(404).json({ error: 'Legacy prototype route is quarantined' });
@@ -111,7 +117,8 @@ app.use('/api/dashboard', require('./middleware/auth').authenticateToken, async 
 
 // Catch-all for SPA
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+  if (hasClientBuild) return res.sendFile(clientIndexPath);
+  return res.status(404).json({ error: 'Frontend is served by the configured development server' });
 });
 
 async function startServer() {
