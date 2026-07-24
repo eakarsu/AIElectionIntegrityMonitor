@@ -8,8 +8,8 @@ export default function LoginPage({ onLogin }) {
   const [loading, setLoading] = useState(false);
 
   const handleAutoFill = () => {
-    setEmail('admin@electionmonitor.gov');
-    setPassword('Admin123!');
+    setEmail(import.meta.env.VITE_DEMO_EMAIL || '');
+    setPassword(import.meta.env.VITE_DEMO_PASSWORD || '');
     setError('');
   };
 

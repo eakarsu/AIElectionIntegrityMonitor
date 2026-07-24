@@ -7,6 +7,12 @@ const Redistricting = require('../models/Redistricting');
 const VoterRegistration = require('../models/VoterRegistration');
 const CampaignFinance = require('../models/CampaignFinance');
 
+function requireDemoPassword() {
+  const password = process.env.DEMO_PASSWORD || process.env.SEED_DEMO_PASSWORD || process.env.DEMO_SEED_PASSWORD || '';
+  if (password.length < 12 || password.length > 1024) throw new Error('DEMO_PASSWORD must contain 12-1024 characters');
+  return password;
+}
+
 async function seed() {
   try {
     await sequelize.authenticate();
@@ -22,8 +28,8 @@ async function seed() {
       name: 'Admin User',
       role: 'admin'
     });
-    await User.create({ email: 'auditor@electionmonitor.gov', password: 'Auditor123!', name: 'Jane Auditor', role: 'auditor' });
-    await User.create({ email: 'viewer@electionmonitor.gov', password: 'Viewer123!', name: 'John Viewer', role: 'viewer' });
+    await User.create({ email: 'auditor@electionmonitor.gov', password: requireDemoPassword(), name: 'Jane Auditor', role: 'auditor' });
+    await User.create({ email: 'viewer@electionmonitor.gov', password: requireDemoPassword(), name: 'John Viewer', role: 'viewer' });
     console.log('Users seeded.');
 
     // Seed Ballot Counts (15 records)
@@ -111,7 +117,7 @@ async function seed() {
     console.log('Campaign finance data seeded (15 records).');
 
     console.log('\n=== Seeding complete! ===');
-    console.log('Default login: admin@electionmonitor.gov / Admin123!');
+    console.log('Demo login users provisioned from the local environment.');
     process.exit(0);
   } catch (error) {
     console.error('Seeding failed:', error);
