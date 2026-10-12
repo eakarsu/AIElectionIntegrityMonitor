@@ -1,7 +1,9 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const nativeRecordAttributes = require('./nativeRecordAttributes');
 
 const Redistricting = sequelize.define('Redistricting', {
+  ...nativeRecordAttributes,
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,

@@ -18,17 +18,23 @@ async function request(path, options = {}) {
   return data;
 }
 
+function readRows(body) {
+  if (!Array.isArray(body.data)) throw new Error('The native records response is invalid. Reload after checking the database.');
+  return body.data;
+}
+export const records = { getAll: name => request('/records/' + encodeURIComponent(name)).then(readRows) };
+
 export const auth = {
-  login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: (email, password, options = {}) => request('/auth/login', { ...options, method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request('/auth/me')
 };
 
 export const dashboard = {
-  getStats: () => request('/dashboard')
+  getStats: () => request('/records/dashboard')
 };
 
 export const ballotCounts = {
-  getAll: () => request('/ballot-counts'),
+  getAll: () => request('/records/ballot-counts').then(readRows),
   getOne: (id) => request(`/ballot-counts/${id}`),
   create: (data) => request('/ballot-counts', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/ballot-counts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -37,7 +43,7 @@ export const ballotCounts = {
 };
 
 export const redistricting = {
-  getAll: () => request('/redistricting'),
+  getAll: () => request('/records/redistricting').then(readRows),
   getOne: (id) => request(`/redistricting/${id}`),
   create: (data) => request('/redistricting', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/redistricting/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -46,7 +52,7 @@ export const redistricting = {
 };
 
 export const voterRegistration = {
-  getAll: () => request('/voter-registration'),
+  getAll: () => request('/records/voter-registration').then(readRows),
   getOne: (id) => request(`/voter-registration/${id}`),
   create: (data) => request('/voter-registration', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/voter-registration/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -55,7 +61,7 @@ export const voterRegistration = {
 };
 
 export const campaignFinance = {
-  getAll: () => request('/campaign-finance'),
+  getAll: () => request('/records/campaign-finance').then(readRows),
   getOne: (id) => request(`/campaign-finance/${id}`),
   create: (data) => request('/campaign-finance', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/campaign-finance/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

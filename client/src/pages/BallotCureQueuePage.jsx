@@ -1,37 +1,7 @@
 import React, { useEffect, useState } from 'react';
-
+import { records } from '../services/api';
 export default function BallotCureQueuePage() {
-  const [data, setData] = useState({ summary: {}, cureItems: [] });
-  const [assignment, setAssignment] = useState(null);
-
-  useEffect(() => {
-    fetch('/api/ballot-cure-queue').then((res) => res.json()).then(setData);
-  }, []);
-
-  const assign = async (id) => {
-    const res = await fetch('/api/ballot-cure-queue/assign', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-    setAssignment(await res.json());
-  };
-
-  return (
-    <div>
-      <h2>Ballot Cure Queue</h2>
-      <p>Prioritize cure notices and outreach before statutory deadlines.</p>
-      <div className="stats-grid">
-        {Object.entries(data.summary).map(([key, value]) => <div className="stat-card" key={key}><span>{key}</span><strong>{value}</strong></div>)}
-      </div>
-      {data.cureItems.map((item) => (
-        <div className="card" key={item.id} style={{ marginBottom: 12 }}>
-          <strong>{item.id}</strong> · {item.county} · {item.reason}
-          <div>{item.dueHours} hours remaining · {item.status}</div>
-          <button className="btn btn-primary btn-sm" onClick={() => assign(item.id)}>Assign outreach</button>
-        </div>
-      ))}
-      {assignment && <div className="card">{assignment.assignment}: {assignment.script}</div>}
-    </div>
-  );
+  const [rows,setRows]=useState([]),[error,setError]=useState(''),[loading,setLoading]=useState(true);
+  useEffect(()=>{let active=true;records.getAll('ballot-cure-queue').then(data=>{if(active)setRows(data);}).catch(error=>{if(active)setError(error.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
+  return <section><h2>Ballot Cure Queue ({rows.length})</h2><p>Persisted draft exercises. DEMO rows are fictional, contain no actual voter identity, and do not establish statutory deadlines or authorize contact.</p>{loading?<p role="status">Loading draft records…</p>:error?<p role="alert">Could not load draft records: {error}</p>:<table className="data-table"><thead><tr><th>Batch</th><th>County</th><th>Reason</th><th>Deadline</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map(row=><tr key={row.id}><td>{row.voterBatch}{row.is_demo&&<span className="badge badge-warning"> DEMO</span>}</td><td>{row.county}</td><td>{row.reason}</td><td>{row.dueHours==null?'Not documented':row.dueHours+' hours'}</td><td>{row.status}</td><td><button type="button" disabled title="Actual outreach requires the supported governed workflow and evidence.">Assign outreach unavailable</button></td></tr>)}</tbody></table>}</section>;
 }

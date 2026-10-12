@@ -8,6 +8,7 @@ const BallotCount = require('../models/BallotCount');
 const VoterRegistration = require('../models/VoterRegistration');
 const CampaignFinance = require('../models/CampaignFinance');
 const Redistricting = require('../models/Redistricting');
+const { nativeReadContext, scopeWhere } = require('../services/nativeRecords');
 
 // Helper: 503 if no API key configured. Match existing helper style.
 function ensureKey(res) {
@@ -19,6 +20,24 @@ function ensureKey(res) {
 }
 
 router.use(authenticateToken);
+router.use(nativeReadContext);
+router.use((req,res,next) => {
+  if (req.method === 'POST' && ['/cross-entity-correlation','/county-risk-score','/ballot-integrity-check','/campaign-finance-analysis','/voter-registration-audit','/gerrymandering-analysis'].includes(req.path)) {
+    for (const key of ['county','state','candidate_name','district_name','registration_type']) {
+      const value = req.body?.[key];
+      if (value != null && (typeof value !== 'string' || value.length > 255)) return res.status(400).json({ error: key + ' must be text up to 255 characters.' });
+    }
+    if (req.body?.registration_type && !['new','update','transfer','purge','reinstatement'].includes(req.body.registration_type)) return res.status(400).json({ error: 'registration_type must be new, update, transfer, purge or reinstatement.' });
+  }
+  next();
+});
+router.use((req,res,next) => {
+  const controller = new AbortController(); req.aiSignal = controller.signal;
+  const abort = () => { if (!res.writableEnded) controller.abort(); };
+  req.once('aborted',abort); res.once('close',abort);
+  res.once('finish',()=>{req.removeListener('aborted',abort);res.removeListener('close',abort);});
+  next();
+});
 
 // POST /api/ai/cross-entity-correlation
 // Accepts {county, state}, fetches all domain data for that location, identifies correlated anomalies
@@ -30,21 +49,23 @@ router.post('/cross-entity-correlation', aiRateLimiter, async (req, res) => {
     }
 
     const [ballotCounts, voterRegs, campaignFinances] = await Promise.all([
-      BallotCount.findAll({ where: { county, state } }),
-      VoterRegistration.findAll({ where: { county, state } }),
-      CampaignFinance.findAll({ where: { state } })
+      BallotCount.findAll({ where: { ...scopeWhere(req.actor), county, state } }),
+      VoterRegistration.findAll({ where: { ...scopeWhere(req.actor), county, state } }),
+      CampaignFinance.findAll({ where: { ...scopeWhere(req.actor), state } })
     ]);
+
+    if (!ballotCounts.length && !voterRegs.length && !campaignFinances.length) return res.status(404).json({ error: 'No source records found in your scope for these filters.' });
 
     const prompt = `Analyze cross-entity correlations for election integrity in ${county}, ${state}.
 
 Ballot Count Records (${ballotCounts.length}):
-${ballotCounts.map(b => `- Precinct: ${b.precinct}, Total: ${b.totalBallotsCast}, Status: ${b.status}, AI Risk: ${b.aiAnalysis?.risk_level || 'N/A'}`).join('\n') || 'No records'}
+${ballotCounts.map(b => `- Precinct: ${b.precinct}${b.is_demo ? ' [FICTIONAL TRAINING SAMPLE]' : ''}, Total: ${b.totalBallotsCast}, Status: ${b.status}, AI Risk: ${b.aiAnalysis?.risk_level || 'N/A'}`).join('\n') || 'No records'}
 
 Voter Registration Records (${voterRegs.length}):
 ${voterRegs.map(v => `- Type: ${v.registrationType}, Total: ${v.totalRegistrations}, Flagged: ${v.flaggedRecords}, Status: ${v.status}, AI Risk: ${v.aiAnalysis?.risk_level || 'N/A'}`).join('\n') || 'No records'}
 
 Campaign Finance Records (${campaignFinances.length}):
-${campaignFinances.map(c => `- Candidate: ${c.candidateName}, Total: $${c.totalContributions}, Foreign Flagged: ${c.foreignFlaggedDonations}, Status: ${c.complianceStatus}, AI Risk: ${c.aiAnalysis?.risk_level || 'N/A'}`).join('\n') || 'No records'}
+${campaignFinances.map(c => `- Candidate: ${c.candidateName}${c.is_demo ? ' [FICTIONAL TRAINING SAMPLE]' : ''}, Total: $${c.totalContributions}, Foreign Flagged: ${c.foreignFlaggedDonations}, Status: ${c.complianceStatus}, AI Risk: ${c.aiAnalysis?.risk_level || 'N/A'}`).join('\n') || 'No records'}
 
 Identify correlated anomalies across these domains. Respond ONLY with valid JSON:
 {
@@ -56,7 +77,7 @@ Identify correlated anomalies across these domains. Respond ONLY with valid JSON
   "recommended_actions": ["action1", "action2"]
 }`;
 
-    const result = await queryAI(prompt, 'You are a senior election integrity analyst specializing in cross-domain correlation analysis. Return only valid JSON.');
+    const result = await queryAI(prompt, 'You are a senior election integrity analyst specializing in cross-domain correlation analysis. Return only valid JSON.', { signal: req.aiSignal });
 
     let analysis;
     try {
@@ -76,7 +97,8 @@ Identify correlated anomalies across these domains. Respond ONLY with valid JSON
       analysis
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (req.aiSignal?.aborted) return;
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -90,10 +112,12 @@ router.post('/county-risk-score', aiRateLimiter, async (req, res) => {
     }
 
     const [ballotCounts, voterRegs, campaignFinances] = await Promise.all([
-      BallotCount.findAll({ where: { county, state } }),
-      VoterRegistration.findAll({ where: { county, state } }),
-      CampaignFinance.findAll({ where: { state } })
+      BallotCount.findAll({ where: { ...scopeWhere(req.actor), county, state } }),
+      VoterRegistration.findAll({ where: { ...scopeWhere(req.actor), county, state } }),
+      CampaignFinance.findAll({ where: { ...scopeWhere(req.actor), state } })
     ]);
+
+    if (!ballotCounts.length && !voterRegs.length && !campaignFinances.length) return res.status(404).json({ error: 'No source records found in your scope for these filters.' });
 
     const flaggedBallots = ballotCounts.filter(b => b.status === 'flagged' || b.status === 'under_review');
     const anomalyRegs = voterRegs.filter(v => v.status === 'anomaly_detected' || v.status === 'under_investigation');
@@ -134,7 +158,7 @@ Return a unified county risk score from 0-100 with contributing factors. Respond
   "recommended_actions": ["action1", "action2"]
 }`;
 
-    const result = await queryAI(prompt, 'You are an election integrity risk aggregation specialist. Return only valid JSON.');
+    const result = await queryAI(prompt, 'You are an election integrity risk aggregation specialist. Return only valid JSON.', { signal: req.aiSignal });
 
     let analysis;
     try {
@@ -145,7 +169,8 @@ Return a unified county risk score from 0-100 with contributing factors. Respond
 
     res.json({ county, state, analysis });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (req.aiSignal?.aborted) return;
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -156,17 +181,17 @@ router.get('/flagged-report', async (req, res) => {
     const [ballotCounts, voterRegs, campaignFinances] = await Promise.all([
       BallotCount.findAll({
         where: {
-          status: ['flagged', 'under_review']
+          ...scopeWhere(req.actor), status: ['flagged', 'under_review']
         }
       }),
       VoterRegistration.findAll({
         where: {
-          status: ['anomaly_detected', 'under_investigation']
+          ...scopeWhere(req.actor), status: ['anomaly_detected', 'under_investigation']
         }
       }),
       CampaignFinance.findAll({
         where: {
-          complianceStatus: ['major_violations', 'flagged']
+          ...scopeWhere(req.actor), complianceStatus: ['major_violations', 'flagged']
         }
       })
     ]);
@@ -226,7 +251,8 @@ router.get('/flagged-report', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (req.aiSignal?.aborted) return;
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -238,9 +264,15 @@ router.post('/ballot-integrity-check', aiRateLimiter, async (req, res) => {
     const { county, state, election_year } = req.body;
     if (!state) return res.status(400).json({ error: 'state is required' });
 
-    const where = { state };
+    const where = { ...scopeWhere(req.actor), state };
     if (county) where.county = county;
-    if (election_year) where.electionYear = election_year;
+    if (election_year !== undefined && election_year !== null && election_year !== '') {
+      const year = Number(election_year);
+      if (typeof election_year === 'boolean' || !/^\d{4}$/.test(String(election_year)) || !Number.isInteger(year) || year < 1900 || year > 9998) {
+        return res.status(400).json({ error: 'election_year must be a four-digit year from 1900 to 9998' });
+      }
+      where.electionDate = { [Op.gte]: `${year}-01-01`, [Op.lt]: `${year + 1}-01-01` };
+    }
 
     const ballots = await BallotCount.findAll({ where });
     if (!ballots.length) {
@@ -248,7 +280,7 @@ router.post('/ballot-integrity-check', aiRateLimiter, async (req, res) => {
     }
 
     const summary = ballots.map(b =>
-      `- Precinct ${b.precinct}: cast=${b.totalBallotsCast}, registered=${b.totalRegisteredVoters}, rejected=${b.rejectedBallots || 0}, status=${b.status}`
+      `- Precinct ${b.precinct}${b.is_demo ? ' [FICTIONAL TRAINING SAMPLE]' : ''}: cast=${b.totalBallotsCast}, registered=${b.registeredVoters}, machine=${b.machineCount}, hand=${b.handCount ?? 'Not recorded'}, discrepancy=${b.discrepancy}, status=${b.status}`
     ).join('\n');
 
     const prompt = `Analyze the following precinct-level ballot counts for integrity concerns.
@@ -270,7 +302,7 @@ ONLY with valid JSON:
   "recommended_actions": ["action1", "action2"]
 }`;
 
-    const result = await queryAI(prompt, 'You are a senior election integrity analyst specializing in ballot count anomaly detection. Return only valid JSON.');
+    const result = await queryAI(prompt, 'You are a senior election integrity analyst specializing in ballot count anomaly detection. Return only valid JSON.', { signal: req.aiSignal });
     let parsed;
     try { parsed = cleanJsonResponse(result.content); } catch { parsed = { raw: result.content }; }
 
@@ -282,7 +314,8 @@ ONLY with valid JSON:
       analysis: parsed,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (req.aiSignal?.aborted) return;
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -294,7 +327,7 @@ router.post('/campaign-finance-analysis', aiRateLimiter, async (req, res) => {
     const { state, candidate_name } = req.body;
     if (!state) return res.status(400).json({ error: 'state is required' });
 
-    const where = { state };
+    const where = { ...scopeWhere(req.actor), state };
     if (candidate_name) where.candidateName = candidate_name;
 
     const records = await CampaignFinance.findAll({ where });
@@ -303,7 +336,7 @@ router.post('/campaign-finance-analysis', aiRateLimiter, async (req, res) => {
     }
 
     const summary = records.map(c =>
-      `- ${c.candidateName}: total=$${c.totalContributions}, foreignFlagged=${c.foreignFlaggedDonations || 0}, individualCount=${c.individualDonationCount || 'N/A'}, status=${c.complianceStatus}`
+      `- ${c.candidateName}${c.is_demo ? ' [FICTIONAL TRAINING SAMPLE]' : ''}: total=$${c.totalContributions}, foreignFlagged=${c.foreignFlaggedDonations || 0}, individualCount=${c.individualDonations ?? 'Not recorded'}, status=${c.complianceStatus}`
     ).join('\n');
 
     const prompt = `Analyze the following campaign finance records for unusual patterns.
@@ -325,7 +358,7 @@ and timing clusters. Respond ONLY with valid JSON:
   "recommended_actions": ["action1", "action2"]
 }`;
 
-    const result = await queryAI(prompt, 'You are a senior campaign finance analyst specializing in pattern detection across contribution records. Return only valid JSON.');
+    const result = await queryAI(prompt, 'You are a senior campaign finance analyst specializing in pattern detection across contribution records. Return only valid JSON.', { signal: req.aiSignal });
     let parsed;
     try { parsed = cleanJsonResponse(result.content); } catch { parsed = { raw: result.content }; }
 
@@ -336,7 +369,8 @@ and timing clusters. Respond ONLY with valid JSON:
       analysis: parsed,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (req.aiSignal?.aborted) return;
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -350,7 +384,7 @@ router.post('/voter-registration-audit', aiRateLimiter, async (req, res) => {
     const { state, county, registration_type } = req.body;
     if (!state) return res.status(400).json({ error: 'state is required' });
 
-    const where = { state };
+    const where = { ...scopeWhere(req.actor), state };
     if (county) where.county = county;
     if (registration_type) where.registrationType = registration_type;
 
@@ -360,7 +394,7 @@ router.post('/voter-registration-audit', aiRateLimiter, async (req, res) => {
     }
 
     const summary = records.map(v =>
-      `- County ${v.county}, type=${v.registrationType}: total=${v.totalRegistrations}, flagged=${v.flaggedRecords || 0}, duplicates=${v.duplicateRecords || 0}, deceased=${v.deceasedMatches || 0}, addrMismatch=${v.addressMismatches || 0}, status=${v.status}`
+      `- County ${v.county}${v.is_demo ? ' [FICTIONAL TRAINING SAMPLE]' : ''}, type=${v.registrationType}: total=${v.totalRegistrations}, flagged=${v.flaggedRecords || 0}, duplicates=${v.duplicateRecords || 0}, deceased=${v.deceasedMatches || 0}, addrMismatch=${v.addressMismatches || 0}, status=${v.status}`
     ).join('\n');
 
     const prompt = `Audit the following voter registration records for duplicate / invalid / suspicious patterns.
@@ -382,7 +416,7 @@ reinstatement activity. Respond ONLY with valid JSON:
   "recommended_actions": ["action1", "action2"]
 }`;
 
-    const result = await queryAI(prompt, 'You are a senior voter registration integrity auditor specializing in duplicate / invalid record detection. Return only valid JSON.');
+    const result = await queryAI(prompt, 'You are a senior voter registration integrity auditor specializing in duplicate / invalid record detection. Return only valid JSON.', { signal: req.aiSignal });
     let parsed;
     try { parsed = cleanJsonResponse(result.content); } catch { parsed = { raw: result.content }; }
 
@@ -394,7 +428,8 @@ reinstatement activity. Respond ONLY with valid JSON:
       analysis: parsed,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (req.aiSignal?.aborted) return;
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -407,7 +442,7 @@ router.post('/gerrymandering-analysis', aiRateLimiter, async (req, res) => {
     const { state, district_name } = req.body;
     if (!state) return res.status(400).json({ error: 'state is required' });
 
-    const where = { state };
+    const where = { ...scopeWhere(req.actor), state };
     if (district_name) where.districtName = district_name;
 
     const records = await Redistricting.findAll({ where });
@@ -416,7 +451,7 @@ router.post('/gerrymandering-analysis', aiRateLimiter, async (req, res) => {
     }
 
     const summary = records.map(r =>
-      `- District ${r.districtName}: pop=${r.population}, minority%=${r.minorityPopulationPct || 'N/A'}, compactness=${r.compactnessScore || 'N/A'}, contiguous=${r.contiguityCheck}, competitiveness=${r.competitivenessIndex || 'N/A'}, fairness=${r.fairnessScore || 'N/A'}, status=${r.status}, proposedBy=${r.proposedBy}`
+      `- District ${r.districtName}${r.is_demo ? ' [FICTIONAL TRAINING SAMPLE]' : ''}: pop=${r.population}, minority%=${r.minorityPopulationPct || 'N/A'}, compactness=${r.compactnessScore || 'N/A'}, contiguous=${r.contiguityCheck ?? 'Not documented'}, competitiveness=${r.competitivenessIndex || 'N/A'}, fairness=${r.fairnessScore || 'N/A'}, status=${r.status}, proposedBy=${r.proposedBy}`
     ).join('\n');
 
     const prompt = `Analyze the following redistricting proposals for partisan-bias / gerrymandering indicators.
@@ -439,7 +474,7 @@ valid JSON:
   "recommended_actions": ["action1", "action2"]
 }`;
 
-    const result = await queryAI(prompt, 'You are a nonpartisan redistricting fairness analyst specializing in gerrymandering pattern detection. Return only valid JSON.');
+    const result = await queryAI(prompt, 'You are a nonpartisan redistricting fairness analyst specializing in gerrymandering pattern detection. Return only valid JSON.', { signal: req.aiSignal });
     let parsed;
     try { parsed = cleanJsonResponse(result.content); } catch { parsed = { raw: result.content }; }
 
@@ -450,7 +485,8 @@ valid JSON:
       analysis: parsed,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (req.aiSignal?.aborted) return;
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -487,10 +523,10 @@ router.get('/transparency-dashboard', aiRateLimiter, async (req, res) => {
   try {
     // PRODUCT-DECISION: counts-only aggregates pending legal sign-off.
     const [bcCount, vrCount, cfCount, rdCount] = await Promise.all([
-      BallotCount.count().catch(() => 0),
-      VoterRegistration.count().catch(() => 0),
-      CampaignFinance.count().catch(() => 0),
-      Redistricting.count().catch(() => 0),
+      BallotCount.count({ where: scopeWhere(req.actor) }),
+      VoterRegistration.count({ where: scopeWhere(req.actor) }),
+      CampaignFinance.count({ where: scopeWhere(req.actor) }),
+      Redistricting.count({ where: scopeWhere(req.actor) }),
     ]);
     res.json({
       generated_at: new Date().toISOString(),

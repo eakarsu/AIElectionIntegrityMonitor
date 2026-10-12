@@ -1,3 +1,4 @@
+import NativeElectionAI from './NativeElectionAI';
 import React, { useState, useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
@@ -45,19 +46,21 @@ export default function App() {
   }
 
   const pageMap = {
+    'native-ai': <NativeElectionAI />,
     dashboard: <Dashboard onNavigate={setCurrentPage} />,
     'ballot-counts': <BallotCountPage />,
     redistricting: <RedistrictingPage />,
     'voter-registration': <VoterRegistrationPage />,
     'campaign-finance': <CampaignFinancePage />,
-    'ai-ballot-integrity': <BallotIntegrityCheckPage />,
-    'ai-campaign-finance': <CampaignFinanceAnalysisPage />,
-    'ai-voter-audit': <VoterRegistrationAuditPage />,
-    'ai-gerrymandering': <GerrymanderingAnalysisPage />,
+    'ai-ballot-integrity': <NativeElectionAI feature="ballot-integrity-check" />,
+    'ai-campaign-finance': <NativeElectionAI feature="campaign-finance-analysis" />,
+    'ai-voter-audit': <NativeElectionAI feature="voter-registration-audit" />,
+    'ai-gerrymandering': <NativeElectionAI feature="gerrymandering-analysis" />,
     'ballot-cure-queue': <BallotCureQueuePage />
   };
 
   const pageTitles = {
+    'native-ai': 'AI workspace',
     dashboard: 'Dashboard',
     'ballot-counts': 'Ballot Counting Verification',
     redistricting: 'Redistricting Fairness Analysis',
@@ -71,6 +74,7 @@ export default function App() {
   };
 
   const navItems = [
+    { id: 'native-ai', label: 'AI workspace', icon: '✨' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'ballot-counts', label: 'Ballot Verification', icon: '🗳️' },
     { id: 'redistricting', label: 'Redistricting', icon: '🗺️' },

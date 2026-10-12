@@ -4,15 +4,17 @@ import { dashboard } from '../services/api';
 export default function Dashboard({ onNavigate }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     dashboard.getStats()
       .then(setStats)
-      .catch(console.error)
+      .catch(error => setError(error.message))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="ai-loading"><div className="ai-spinner"></div>Loading dashboard...</div>;
+  if (error) return <div role="alert" className="card"><h2>Could not load the dashboard</h2><p>{error}</p><p>Sign in again or reload after checking the local API.</p></div>;
 
   const statCards = [
     {
@@ -55,6 +57,7 @@ export default function Dashboard({ onNavigate }) {
 
   return (
     <div>
+      <p role="status">{stats.reviewStatus} {stats.sampleRecords} records are explicitly fictional training samples.</p>
       {/* Alert Banner */}
       {stats?.totalAlerts > 0 && (
         <div style={{
@@ -91,7 +94,7 @@ export default function Dashboard({ onNavigate }) {
                   {card.flagged > 0 ? (
                     <span className="stat-alert">{card.flagged} {card.flagLabel}</span>
                   ) : (
-                    <span>All Clear</span>
+                    <span>No flagged records · review remains pending</span>
                   )}
                 </div>
               </div>

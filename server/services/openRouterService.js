@@ -1,63 +1,23 @@
-const https = require('https');
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
 const { parseAIJson } = require('../utils/parseAIJson');
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-3-5-sonnet-20241022';
-
-async function queryAI(prompt, systemPrompt = '') {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [
-        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: 2000,
-      temperature: 0.3
-    });
-
-    const baseUrl = (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
-    const endpoint = new URL(`${baseUrl}/chat/completions`);
-    const options = {
-      hostname: endpoint.hostname,
-      port: endpoint.port || 443,
-      path: `${endpoint.pathname}${endpoint.search}`,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'AI Election Integrity Monitor'
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.error) {
-            reject(new Error(parsed.error.message || 'OpenRouter API error'));
-            return;
-          }
-          const content = parsed.choices?.[0]?.message?.content || 'No response generated';
-          resolve({
-            content,
-            model: parsed.model,
-            usage: parsed.usage
-          });
-        } catch (e) {
-          reject(new Error('Failed to parse AI response'));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.write(body);
-    req.end();
+async function queryAI(prompt, systemPrompt = '', { signal } = {}) {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) throw Object.assign(new Error('OpenRouter is not configured.'), { statusCode: 503 });
+  const response = await fetch((process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '') + '/chat/completions', {
+    method: 'POST', signal,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'HTTP-Referer': 'http://localhost:3000', 'X-Title': 'AI Election Integrity Monitor' },
+    body: JSON.stringify({ model: process.env.OPENROUTER_MODEL || 'anthropic/claude-3-5-sonnet-20241022',
+      messages: [...(systemPrompt ? [{ role: 'system', content: systemPrompt + ' Fictional training records are exercises, not actual election evidence; do not certify outcomes or make unsupported fraud claims.' }] : []), { role: 'user', content: prompt }],
+      max_tokens: 2000, temperature: 0.3 })
   });
+  let body;
+  try { body = await response.json(); } catch { throw Object.assign(new Error('OpenRouter returned an unreadable response.'), { statusCode: 502 }); }
+  if (!response.ok || body.error) throw Object.assign(new Error('OpenRouter could not complete this request. Check provider configuration and try again.'), { statusCode: 502 });
+  const choice = body.choices?.[0], content = choice?.message?.content;
+  if (choice?.message?.refusal || ['length','content_filter'].includes(choice?.finish_reason) || typeof content !== 'string' || !content.trim()) throw Object.assign(new Error('OpenRouter did not return a complete usable answer.'), { statusCode: 502 });
+  if (signal?.aborted) throw Object.assign(new Error('Request cancelled.'), { name: 'AbortError' });
+  return { content, model: body.model, usage: body.usage };
 }
 
 // Backwards-compat wrapper around shared 3-strategy parser. Throws on total failure

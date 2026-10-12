@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { campaignFinance } from '../services/api';
-import AIAnalysisPanel from '../components/AIAnalysisPanel';
+import NativeAIReport from '../NativeAIReport';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const statusBadge = (status) => {
@@ -25,6 +25,7 @@ const emptyForm = {
 export default function CampaignFinancePage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [selected, setSelected] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
@@ -34,7 +35,8 @@ export default function CampaignFinancePage() {
 
   const load = () => {
     setLoading(true);
-    campaignFinance.getAll().then(setRecords).catch(console.error).finally(() => setLoading(false));
+    setLoadError('');
+    campaignFinance.getAll().then(setRecords).catch(error => setLoadError(error.message)).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -79,14 +81,17 @@ export default function CampaignFinancePage() {
   };
 
   if (loading) return <div className="ai-loading"><div className="ai-spinner"></div>Loading records...</div>;
+  if (loadError) return <div role="alert" className="card"><h2>Could not load records</h2><p>{loadError}</p><button type="button" className="btn btn-outline" onClick={load}>Retry</button></div>;
+
+
 
   if (selected && !showForm) {
     return (
-      <div className="animate-in">
+      <div className="animate-in"><p role="status">Read-only source records. Rows labeled DEMO are fictional training samples, pending human review. No approval or real election result is implied.</p>
         <div style={{ marginBottom: 20, display: 'flex', gap: 12 }}>
           <button className="btn btn-outline" onClick={() => setSelected(null)}>← Back to List</button>
-          <button className="btn btn-primary" onClick={handleEdit}>✏️ Edit</button>
-          <button className="btn btn-danger" onClick={() => setDeleteTarget(selected)}>🗑️ Delete</button>
+          <button className="btn btn-primary" disabled title="Read-only records. Use the AI workspace for advisory review." onClick={handleEdit}>✏️ Edit</button>
+          <button className="btn btn-danger" disabled title="Retained read-only record." onClick={() => setDeleteTarget(selected)}>🗑️ Delete</button>
         </div>
         <div className="data-table-container">
           <div className="table-header">
@@ -109,7 +114,7 @@ export default function CampaignFinancePage() {
               <div className="detail-item"><div className="detail-label">Balance</div><div className="detail-value" style={{ color: Number(selected.totalExpenditures) > Number(selected.totalContributions) ? 'var(--accent)' : 'var(--success)' }}>${(Number(selected.totalContributions) - Number(selected.totalExpenditures)).toLocaleString()}</div></div>
             </div>
             {selected.notes && <div className="detail-item"><div className="detail-label">Notes</div><div className="detail-value" style={{ fontSize: 14, fontWeight: 400 }}>{selected.notes}</div></div>}
-            <AIAnalysisPanel analysis={selected.aiAnalysis} loading={analyzing} onAnalyze={handleAnalyze} />
+            <p>Record-level AI mutations remain unavailable. Use the separate AI workspace for an advisory review.</p>{selected.aiAnalysis && <NativeAIReport response={selected.aiAnalysis} />}
           </div>
         </div>
         {deleteTarget && <ConfirmDialog title="Delete Record" message={`Delete finance record for ${deleteTarget.candidateName}?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />}
@@ -119,7 +124,7 @@ export default function CampaignFinancePage() {
 
   if (showForm) {
     return (
-      <div className="animate-in">
+      <div className="animate-in"><p role="status">Read-only source records. Rows labeled DEMO are fictional training samples, pending human review. No approval or real election result is implied.</p>
         <button className="btn btn-outline" onClick={() => { setShowForm(false); if (editing && selected) setSelected(selected); }} style={{ marginBottom: 20 }}>← Cancel</button>
         <div className="data-table-container">
           <div className="table-header"><h2>{editing ? 'Edit' : 'New'} Campaign Finance Record</h2></div>
@@ -157,11 +162,11 @@ export default function CampaignFinancePage() {
   }
 
   return (
-    <div className="animate-in">
+    <div className="animate-in"><p role="status">Read-only source records. Rows labeled DEMO are fictional training samples, pending human review. No approval or real election result is implied.</p>
       <div className="data-table-container">
         <div className="table-header">
           <h2>Campaign Finance Records ({records.length})</h2>
-          <button className="btn btn-success" onClick={handleNew}>+ New Record</button>
+          <button className="btn btn-success" disabled title="Read-only records. Use the AI workspace for advisory review." onClick={handleNew}>+ New Record</button>
         </div>
         <table className="data-table">
           <thead>
@@ -170,7 +175,7 @@ export default function CampaignFinancePage() {
           <tbody>
             {records.map(r => (
               <tr key={r.id} onClick={() => handleRowClick(r)}>
-                <td style={{ fontWeight: 600 }}>{r.candidateName}</td>
+                <td style={{ fontWeight: 600 }}>{r.candidateName}{r.is_demo && <span className="badge badge-warning"> DEMO · unreviewed</span>}</td>
                 <td>{r.party}</td>
                 <td>{r.office}</td>
                 <td>{r.state}</td>

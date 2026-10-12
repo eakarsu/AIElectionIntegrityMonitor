@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { redistricting } from '../services/api';
-import AIAnalysisPanel from '../components/AIAnalysisPanel';
+import NativeAIReport from '../NativeAIReport';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const statusBadge = (status) => {
@@ -17,6 +17,7 @@ const emptyForm = {
 export default function RedistrictingPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [selected, setSelected] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
@@ -26,7 +27,8 @@ export default function RedistrictingPage() {
 
   const load = () => {
     setLoading(true);
-    redistricting.getAll().then(setRecords).catch(console.error).finally(() => setLoading(false));
+    setLoadError('');
+    redistricting.getAll().then(setRecords).catch(error => setLoadError(error.message)).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -71,14 +73,17 @@ export default function RedistrictingPage() {
   };
 
   if (loading) return <div className="ai-loading"><div className="ai-spinner"></div>Loading records...</div>;
+  if (loadError) return <div role="alert" className="card"><h2>Could not load records</h2><p>{loadError}</p><button type="button" className="btn btn-outline" onClick={load}>Retry</button></div>;
+
+
 
   if (selected && !showForm) {
     return (
-      <div className="animate-in">
+      <div className="animate-in"><p role="status">Read-only source records. Rows labeled DEMO are fictional training samples, pending human review. No approval or real election result is implied.</p>
         <div style={{ marginBottom: 20, display: 'flex', gap: 12 }}>
           <button className="btn btn-outline" onClick={() => setSelected(null)}>← Back to List</button>
-          <button className="btn btn-primary" onClick={handleEdit}>✏️ Edit</button>
-          <button className="btn btn-danger" onClick={() => setDeleteTarget(selected)}>🗑️ Delete</button>
+          <button className="btn btn-primary" disabled title="Read-only records. Use the AI workspace for advisory review." onClick={handleEdit}>✏️ Edit</button>
+          <button className="btn btn-danger" disabled title="Retained read-only record." onClick={() => setDeleteTarget(selected)}>🗑️ Delete</button>
         </div>
         <div className="data-table-container">
           <div className="table-header">
@@ -99,7 +104,7 @@ export default function RedistrictingPage() {
               <div className="detail-item"><div className="detail-label">Proposal Date</div><div className="detail-value">{selected.proposalDate}</div></div>
             </div>
             {selected.notes && <div className="detail-item"><div className="detail-label">Notes</div><div className="detail-value" style={{ fontSize: 14, fontWeight: 400 }}>{selected.notes}</div></div>}
-            <AIAnalysisPanel analysis={selected.aiAnalysis} loading={analyzing} onAnalyze={handleAnalyze} />
+            <p>Record-level AI mutations remain unavailable. Use the separate AI workspace for an advisory review.</p>{selected.aiAnalysis && <NativeAIReport response={selected.aiAnalysis} />}
           </div>
         </div>
         {deleteTarget && <ConfirmDialog title="Delete Record" message={`Delete ${deleteTarget.districtName}?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />}
@@ -109,7 +114,7 @@ export default function RedistrictingPage() {
 
   if (showForm) {
     return (
-      <div className="animate-in">
+      <div className="animate-in"><p role="status">Read-only source records. Rows labeled DEMO are fictional training samples, pending human review. No approval or real election result is implied.</p>
         <button className="btn btn-outline" onClick={() => { setShowForm(false); if (editing && selected) setSelected(selected); }} style={{ marginBottom: 20 }}>← Cancel</button>
         <div className="data-table-container">
           <div className="table-header"><h2>{editing ? 'Edit' : 'New'} Redistricting Proposal</h2></div>
@@ -144,11 +149,11 @@ export default function RedistrictingPage() {
   }
 
   return (
-    <div className="animate-in">
+    <div className="animate-in"><p role="status">Read-only source records. Rows labeled DEMO are fictional training samples, pending human review. No approval or real election result is implied.</p>
       <div className="data-table-container">
         <div className="table-header">
           <h2>Redistricting Proposals ({records.length})</h2>
-          <button className="btn btn-success" onClick={handleNew}>+ New Proposal</button>
+          <button className="btn btn-success" disabled title="Read-only records. Use the AI workspace for advisory review." onClick={handleNew}>+ New Proposal</button>
         </div>
         <table className="data-table">
           <thead>
@@ -157,7 +162,7 @@ export default function RedistrictingPage() {
           <tbody>
             {records.map(r => (
               <tr key={r.id} onClick={() => handleRowClick(r)}>
-                <td style={{ fontWeight: 600 }}>{r.districtName}</td>
+                <td style={{ fontWeight: 600 }}>{r.districtName}{r.is_demo && <span className="badge badge-warning"> DEMO · unreviewed</span>}</td>
                 <td>{r.state}</td>
                 <td>{r.proposedBy}</td>
                 <td>{r.population?.toLocaleString()}</td>

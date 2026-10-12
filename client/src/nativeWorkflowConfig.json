@@ -1,0 +1,256 @@
+{
+  "title": "Election evidence review",
+  "features": [
+    {
+      "id": "cross-entity-correlation",
+      "title": "Cross entity correlation",
+      "endpoint": "/ai/cross-entity-correlation",
+      "description": "Examples use filters for explicitly fictional jurisdiction-scoped training records. Review the matching source data before generating. AI output is advisory and cannot certify an election or authorize outreach.",
+      "fields": [
+        {
+          "key": "county",
+          "type": "text",
+          "required": true,
+          "label": "County",
+          "presets": [
+            "Los Angeles",
+            "Travis",
+            "Miami-Dade"
+          ],
+          "manual": false
+        },
+        {
+          "key": "state",
+          "type": "text",
+          "required": true,
+          "label": "State",
+          "presets": [
+            "CA",
+            "TX",
+            "FL"
+          ],
+          "manual": false
+        }
+      ],
+      "source": {
+        "file": "AIElectionIntegrityMonitor/server/routes/aiNew.js",
+        "line": 25
+      }
+    },
+    {
+      "id": "county-risk-score",
+      "title": "County risk score",
+      "endpoint": "/ai/county-risk-score",
+      "description": "Examples use filters for explicitly fictional jurisdiction-scoped training records. Review the matching source data before generating. AI output is advisory and cannot certify an election or authorize outreach.",
+      "fields": [
+        {
+          "key": "county",
+          "type": "text",
+          "required": true,
+          "label": "County",
+          "presets": [
+            "Los Angeles",
+            "Travis",
+            "Miami-Dade"
+          ],
+          "manual": false
+        },
+        {
+          "key": "state",
+          "type": "text",
+          "required": true,
+          "label": "State",
+          "presets": [
+            "CA",
+            "TX",
+            "FL"
+          ],
+          "manual": false
+        }
+      ],
+      "source": {
+        "file": "AIElectionIntegrityMonitor/server/routes/aiNew.js",
+        "line": 85
+      }
+    },
+    {
+      "id": "ballot-integrity-check",
+      "title": "Ballot integrity check",
+      "endpoint": "/ai/ballot-integrity-check",
+      "description": "Examples use filters for explicitly fictional jurisdiction-scoped training records. Review the matching source data before generating. AI output is advisory and cannot certify an election or authorize outreach.",
+      "fields": [
+        {
+          "key": "county",
+          "type": "text",
+          "required": false,
+          "label": "County",
+          "presets": [
+            "Los Angeles",
+            "Travis",
+            "Miami-Dade"
+          ],
+          "manual": false
+        },
+        {
+          "key": "state",
+          "type": "text",
+          "required": true,
+          "label": "State",
+          "presets": [
+            "CA",
+            "TX",
+            "FL"
+          ],
+          "manual": false
+        },
+        {
+          "key": "election_year",
+          "type": "number",
+          "required": false,
+          "label": "Election year",
+          "presets": [
+            2024,
+            2026,
+            2028
+          ],
+          "manual": false,
+          "min": 1900,
+          "max": 9998,
+          "step": 1
+        }
+      ],
+      "source": {
+        "file": "AIElectionIntegrityMonitor/server/routes/aiNew.js",
+        "line": 236
+      }
+    },
+    {
+      "id": "campaign-finance-analysis",
+      "title": "Campaign finance analysis",
+      "endpoint": "/ai/campaign-finance-analysis",
+      "description": "Examples use filters for explicitly fictional jurisdiction-scoped training records. Review the matching source data before generating. AI output is advisory and cannot certify an election or authorize outreach.",
+      "fields": [
+        {
+          "key": "state",
+          "type": "text",
+          "required": true,
+          "label": "State",
+          "presets": [
+            "CA",
+            "TX",
+            "FL"
+          ],
+          "manual": false
+        },
+        {
+          "key": "candidate_name",
+          "type": "text",
+          "required": false,
+          "label": "Candidate name",
+          "presets": [
+            "Demo Candidate 01",
+            "Demo Candidate 02",
+            "Demo Candidate 03"
+          ],
+          "manual": false
+        }
+      ],
+      "source": {
+        "file": "AIElectionIntegrityMonitor/server/routes/aiNew.js",
+        "line": 292
+      }
+    },
+    {
+      "id": "voter-registration-audit",
+      "title": "Voter registration audit",
+      "endpoint": "/ai/voter-registration-audit",
+      "description": "Examples use filters for explicitly fictional jurisdiction-scoped training records. Review the matching source data before generating. AI output is advisory and cannot certify an election or authorize outreach.",
+      "fields": [
+        {
+          "key": "state",
+          "type": "text",
+          "required": true,
+          "label": "State",
+          "presets": [
+            "CA",
+            "TX",
+            "FL"
+          ],
+          "manual": false
+        },
+        {
+          "key": "county",
+          "type": "text",
+          "required": false,
+          "label": "County",
+          "presets": [
+            "Los Angeles",
+            "Travis",
+            "Miami-Dade"
+          ],
+          "manual": false
+        },
+        {
+          "key": "registration_type",
+          "type": "select",
+          "required": false,
+          "label": "Registration type",
+          "presets": [
+            "new",
+            "update",
+            "purge"
+          ],
+          "manual": false,
+          "options": [
+            "new",
+            "update",
+            "transfer",
+            "purge",
+            "reinstatement"
+          ]
+        }
+      ],
+      "source": {
+        "file": "AIElectionIntegrityMonitor/server/routes/aiNew.js",
+        "line": 347
+      }
+    },
+    {
+      "id": "gerrymandering-analysis",
+      "title": "Gerrymandering analysis",
+      "endpoint": "/ai/gerrymandering-analysis",
+      "description": "Examples use filters for explicitly fictional jurisdiction-scoped training records. Review the matching source data before generating. AI output is advisory and cannot certify an election or authorize outreach.",
+      "fields": [
+        {
+          "key": "state",
+          "type": "text",
+          "required": true,
+          "label": "State",
+          "presets": [
+            "CA",
+            "TX",
+            "FL"
+          ],
+          "manual": false
+        },
+        {
+          "key": "district_name",
+          "type": "text",
+          "required": false,
+          "label": "District name",
+          "presets": [
+            "Demo District 01",
+            "Demo District 02",
+            "Demo District 03"
+          ],
+          "manual": false
+        }
+      ],
+      "source": {
+        "file": "AIElectionIntegrityMonitor/server/routes/aiNew.js",
+        "line": 404
+      }
+    }
+  ],
+  "resources": []
+}

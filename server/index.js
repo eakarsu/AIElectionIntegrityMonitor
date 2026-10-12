@@ -12,6 +12,7 @@ try { helmet = require('helmet'); } catch { helmet = null; }
 
 const sequelize = require('./config/database');
 const authRoutes = require('./routes/auth');
+const nativeRecords = require('./routes/nativeRecords');
 const ballotCountRoutes = require('./routes/ballotCounts');
 const redistrictingRoutes = require('./routes/redistricting');
 const voterRegistrationRoutes = require('./routes/voterRegistration');
@@ -56,7 +57,7 @@ const hasClientBuild = fs.existsSync(clientIndexPath);
 if (hasClientBuild) app.use(express.static(clientBuildDir));
 
 app.use('/api', (req, res, next) => {
-  const governed = ['/auth', '/review-workflow', '/ai', '/health'].some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`));
+  const governed = ['/auth', '/review-workflow', '/ai', '/records', '/health'].some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`));
   const legacyEnabled = process.env.NODE_ENV !== 'production' && process.env.ENABLE_LEGACY_PROTOTYPE_ROUTES === 'true';
   if (governed || legacyEnabled) return next();
   return res.status(404).json({ error: 'Legacy prototype route is quarantined' });
@@ -64,6 +65,7 @@ app.use('/api', (req, res, next) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/records', nativeRecords);
 app.use('/api/ballot-counts', ballotCountRoutes);
 app.use('/api/redistricting', redistrictingRoutes);
 app.use('/api/voter-registration', voterRegistrationRoutes);
@@ -82,6 +84,8 @@ app.use('/api/voter-guides', require('./routes/multiLanguageGuides'));
 app.use('/api/security-checklist', require('./routes/securityChecklist'));
 app.use('/api/observer-network', require('./routes/observerNetwork'));
 app.use('/api/ballot-cure-queue', require('./routes/ballotCureQueue'));
+// Gap-feature AI endpoints (POST /api/gap-*) — mounted before the SPA catch-all so they are reachable.
+app.use('/api', require('./routes/batch03Gaps'));
 
 // Dashboard stats
 app.use('/api/dashboard', require('./middleware/auth').authenticateToken, async (req, res) => {
