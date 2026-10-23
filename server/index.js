@@ -24,6 +24,7 @@ const stateRollupRoutes = require('./routes/stateRollup');
 const transparencyRoutes = require('./routes/transparency');
 
 const app = express();
+app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 const PORT = process.env.SERVER_PORT || 3001;
 
 // Security headers (only when helmet is installed)
@@ -56,6 +57,7 @@ const clientIndexPath = path.join(clientBuildDir, 'index.html');
 const hasClientBuild = fs.existsSync(clientIndexPath);
 if (hasClientBuild) app.use(express.static(clientBuildDir));
 
+app.use('/api/feature-pack', require('./routes/featurePack33d'));
 app.use('/api', (req, res, next) => {
   const governed = ['/auth', '/review-workflow', '/ai', '/records', '/health'].some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`));
   const legacyEnabled = process.env.NODE_ENV !== 'production' && process.env.ENABLE_LEGACY_PROTOTYPE_ROUTES === 'true';
